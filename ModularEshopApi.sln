@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.13.35913.81 d17.13
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ModularEshopApi", "ModularEshopApi\ModularEshopApi.csproj", "{4C313990-6168-4444-9FA6-599F144A4CEF}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{4C313990-6168-4444-9FA6-599F144A4CEF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4C313990-6168-4444-9FA6-599F144A4CEF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4C313990-6168-4444-9FA6-599F144A4CEF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4C313990-6168-4444-9FA6-599F144A4CEF}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {04048599-0BB5-4D21-8699-868A720E9294}
+	EndGlobalSection
+EndGlobal
