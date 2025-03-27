@@ -75,5 +75,25 @@ namespace ModularEshopApi.Controllers
                 return StatusCode(500, "internal server error: " + ex.Message);
             }
         }
+
+        // DELETE: api/Users/1
+        [HttpDelete("{id}")]
+        public async Task<ActionResult<User>> DeleteUser(int id)
+        {
+            try
+            {
+                var user = await _context.Users.FindAsync(id);
+                if(user == null)
+                {
+                    return NotFound();
+                }
+                _context.Users.Remove(user);
+                await _context.SaveChangesAsync();
+                return Ok(user);
+            } catch (Exception ex)
+            {
+                return StatusCode(500, "Internal server error: " + ex.Message);
+            }
+        }
     }
 }
