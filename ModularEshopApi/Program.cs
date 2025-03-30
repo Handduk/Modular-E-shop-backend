@@ -2,12 +2,14 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using ModularEshopApi.Data;
 using Microsoft.AspNetCore.Mvc.NewtonsoftJson;
+using ModularEshopApi.Helpers;
 
 var builder = WebApplication.CreateBuilder(args);
 var myAllowedOrigins = "_myAllowedOrigins";
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddAutoMapper(typeof(MappingProfile));
 
 builder.Services.AddCors(options =>
 {
