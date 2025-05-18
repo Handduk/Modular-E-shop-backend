@@ -1,4 +1,4 @@
-﻿namespace ModularEshopApi.Dto
+﻿namespace ModularEshopApi.Dto.User
 {
     public class UserDTO
     {

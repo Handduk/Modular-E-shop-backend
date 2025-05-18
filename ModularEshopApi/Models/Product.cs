@@ -14,12 +14,6 @@ namespace ModularEshopApi.Models
         public decimal Price { get; set; }
         public List<string>? Variants { get; set; }
         public decimal? Discount { get; set; }
-        public string ImagePaths { get; set; }
-
-        [NotMapped]
-        public List<string> Images { 
-            get => string.IsNullOrEmpty(ImagePaths) ? new List<string>() : JsonSerializer.Deserialize<List<string>>(ImagePaths);
-            set => ImagePaths = JsonSerializer.Serialize(value);
-        }
+        public List<string>? Images { get; set; }
     }
 }
