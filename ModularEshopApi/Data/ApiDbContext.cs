@@ -11,5 +11,6 @@ namespace ModularEshopApi.Data
 
         public DbSet<User> Users { get; set; }
         public DbSet<Product> Products { get; set; }
+        public DbSet<Category> Categorys { get; set; }
     }
 }

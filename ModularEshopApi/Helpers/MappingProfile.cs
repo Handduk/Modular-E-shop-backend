@@ -1,6 +1,6 @@
-﻿using ModularEshopApi.Dto;
-using ModularEshopApi.Models;
+﻿using ModularEshopApi.Models;
 using AutoMapper;
+using ModularEshopApi.Dto.User;
 
 namespace ModularEshopApi.Helpers
 {

@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using ModularEshopApi.Data;
 using ModularEshopApi.Models;
 using AutoMapper;
-using ModularEshopApi.Dto;
+using ModularEshopApi.Dto.User;
 
 namespace ModularEshopApi.Controllers
 {
