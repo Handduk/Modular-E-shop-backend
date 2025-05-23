@@ -50,6 +50,8 @@ if (app.Environment.IsDevelopment())
     });
 }
 
+app.UseRouting();
+
 app.UseCors(myAllowedOrigins);
 
 app.UseStaticFiles();
