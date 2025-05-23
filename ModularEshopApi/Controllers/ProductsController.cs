@@ -1,10 +1,8 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ModularEshopApi.Data;
 using ModularEshopApi.Dto.Product;
 using ModularEshopApi.Models;
-using ModularEshopApi.Controllers;
 
 namespace ModularEshopApi.Controllers
 {
@@ -36,26 +34,42 @@ namespace ModularEshopApi.Controllers
 
         //GET: api/Products/
         [HttpGet]
-        public async Task<ActionResult<ActionResult<Product>>> GetProducts()
+        public async Task<ActionResult<ActionResult<GetProductsDTO>>> GetProducts()
         {
             try
             {
-                var listOfProducts = await _context.Products.ToListAsync();
-                if(listOfProducts == null)
+                var baseUrl = $"{Request.Scheme}://{Request.Host}";
+                var products = await _context.Products.ToListAsync();
+                var listOfProducts = products.Select(product => new GetProductsDTO
+                {
+                    Id = product.Id,
+                    Name = product.Name,
+                    Description = product.Description,
+                    CategoryId = product.CategoryId,
+                    Brand = product.Brand,
+                    Options = product.Options,
+                    Price = product.Price,
+                    Variants = product.Variants,
+                    Discount = product.Discount,
+                    Images = product.Images?.Select(image => $"{baseUrl}/{image}").ToList()
+                }).ToList();
+                if (listOfProducts == null)
                 {
                     return NotFound();
                 }
                 return Ok(listOfProducts);
 
-            } catch (Exception ex)
+            }
+            catch (Exception ex)
             {
                 return StatusCode(500, "Internal server error: " + ex.Message);
             }
         }
 
+
         // GET: api/Products/1
         [HttpGet("{id}")]
-        public async Task<ActionResult<Product>> GetProduct(int id)
+        public async Task<ActionResult<GetProductsDTO>> GetProduct(int id)
         {
             try
             {
@@ -64,8 +78,26 @@ namespace ModularEshopApi.Controllers
                 {
                     return NotFound();
                 }
-                return product;
-            } catch (Exception ex)
+                var baseUrl = $"{Request.Scheme}://{Request.Host}";
+
+                var dto = new GetProductsDTO
+                {
+                    Id = product.Id,
+                    Name = product.Name,
+                    Description = product.Description,
+                    CategoryId = product.CategoryId,
+                    Brand = product.Brand,
+                    Options = product.Options,
+                    Price = product.Price,
+                    Variants = product.Variants,
+                    Discount = product.Discount,
+                    Images = product.Images?.Select(image => image.StartsWith("http://") || image.StartsWith("https://")
+                    ? image
+                    : $"{baseUrl}/{image.TrimStart('/')}").ToList()
+                };
+                return Ok(dto);
+            }
+            catch (Exception ex)
             {
                 return StatusCode(500, "Internal server error: " + ex.Message);
             }
@@ -95,10 +127,10 @@ namespace ModularEshopApi.Controllers
                 _context.Products.Add(product);
                 await _context.SaveChangesAsync();
 
-                if(dto.Images != null && dto.Images.Count > 0)
+                if (dto.Images != null && dto.Images.Count > 0)
                 {
                     var category = await _context.Categorys.FindAsync(dto.CategoryId);
-                    if(category == null)
+                    if (category == null)
                     {
                         return NotFound($"Category with ID {dto.CategoryId} not found");
                     }
@@ -107,7 +139,7 @@ namespace ModularEshopApi.Controllers
                     {
                         var folderName = $"{GetSafeFolderName(dto.Name)}-{product.Id}";
                         var categoryName = $"{GetSafeFolderName(category.Name)}-{dto.CategoryId}";
-                        var directoryPath = Path.Combine(_env.WebRootPath, "categorys", categoryName ,"products" , folderName);
+                        var directoryPath = Path.Combine(_env.WebRootPath, "categorys", categoryName, "products", folderName);
                         if (!Directory.Exists(directoryPath))
                         {
                             Directory.CreateDirectory(directoryPath);
@@ -134,7 +166,7 @@ namespace ModularEshopApi.Controllers
             }
         }
 
-        
+
         //DELETE: api/Products/1
         [HttpDelete("{id}")]
         public async Task<ActionResult<Product>> DeleteProduct(int id)
@@ -193,15 +225,30 @@ namespace ModularEshopApi.Controllers
                 product.Price = dto.Price;
                 product.Variants = dto.Variants;
                 product.Discount = dto.Discount;
-                
+
+
                 var existingImages = product.Images ?? new List<string>();
                 var keptImages = dto.KeptImages ?? new List<string>();
+
+                var baseUrl = $"{Request.Scheme}://{Request.Host}";
+                keptImages = keptImages.Select(image => image.StartsWith(baseUrl) ? image.Replace(baseUrl + "/", "") : image).ToList();
+
                 var imagesToDelete = existingImages.Except(keptImages).ToList();
+                var category = await _context.Categorys.FindAsync(product.CategoryId);
+                if (category == null)
+                {
+                    return NotFound($"Category with ID {product.CategoryId} not found");
+                }
+
+                var folderName = $"{GetSafeFolderName(dto.Name)}-{product.Id}";
+                var categoryName = $"{GetSafeFolderName(category.Name)}-{category.Id}";
+                var directoryPath = Path.Combine(_env.WebRootPath, "categorys", categoryName, "products", folderName);
+
 
                 //Delete old images
                 foreach (var image in imagesToDelete)
                 {
-                    var filePath = Path.Combine(_env.WebRootPath, "products", dto.Name, image.Replace("/", Path.DirectorySeparatorChar.ToString()));
+                    var filePath = Path.Combine(directoryPath, image.Replace("/", Path.DirectorySeparatorChar.ToString()));
                     if (System.IO.File.Exists(filePath))
                     {
                         System.IO.File.Delete(filePath);
@@ -209,12 +256,12 @@ namespace ModularEshopApi.Controllers
                 }
 
                 var updatedImages = new List<string>(keptImages);
-
-                if(dto.NewImages != null)
+                //Add new images
+                if (dto.NewImages != null)
                 {
                     foreach (var image in dto.NewImages)
                     {
-                        var directoryPath = Path.Combine(_env.WebRootPath, "products", dto.Name);
+                        ;
                         if (!Directory.Exists(directoryPath))
                         {
                             Directory.CreateDirectory(directoryPath);
@@ -226,7 +273,8 @@ namespace ModularEshopApi.Controllers
                         using var stream = new FileStream(filePath, FileMode.Create);
                         await image.CopyToAsync(stream);
 
-                        updatedImages.Add("/images/products/" + dto.Name + fileName);
+                        var relativePath = Path.Combine("categorys", categoryName, "products", folderName, fileName).Replace("\\", "/");
+                        updatedImages.Add(relativePath);
                     }
                 }
                 product.Images = updatedImages;

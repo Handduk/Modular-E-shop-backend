@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ModularEshopApi.Data;
 using ModularEshopApi.Dto.Category;
+using ModularEshopApi.Dto.Product;
 using ModularEshopApi.Models;
 
 namespace ModularEshopApi.Controllers
@@ -35,15 +36,20 @@ namespace ModularEshopApi.Controllers
 
         //GET: api/Categorys/
         [HttpGet]
-        public async Task<ActionResult<ActionResult<Category>>> GetCategorys()
+        public async Task<ActionResult<ActionResult<GetCategoryDTO>>> GetCategorys()
         {
             try
             {
-                var listOfCategorys = await _context.Categorys.ToListAsync();
-                if (listOfCategorys == null)
+                var baseUrl = $"{Request.Scheme}://{Request.Host}";
+
+                var listOfCategorys = await _context.Categorys.Select(category => new GetCategoryDTO
                 {
-                    return NotFound();
-                }
+                    Id = category.Id,
+                    Name = category.Name,
+                    Description = category.Description,
+                    ImageUrl = string.IsNullOrEmpty(category.Image) ? null : $"{baseUrl}/{category.Image}"
+                }).ToListAsync();
+
                 return Ok(listOfCategorys);
 
             }
@@ -55,7 +61,7 @@ namespace ModularEshopApi.Controllers
 
         // GET: api/Categorys/1
         [HttpGet("{id}")]
-        public async Task<ActionResult<Category>> GetCategory(int id)
+        public async Task<ActionResult<GetCategoryDTO>> GetCategory(int id)
         {
             try
             {
@@ -64,7 +70,44 @@ namespace ModularEshopApi.Controllers
                 {
                     return NotFound();
                 }
-                return category;
+
+                var products = await _context.Products.Where(p => p.CategoryId == category.Id).ToListAsync();
+                var baseUrl = $"{Request.Scheme}://{Request.Host}";
+
+                var dto = new GetCategoryDTO
+                {
+                    Id = category.Id,
+                    Name = category.Name,
+                    Description = category.Description,
+                    ImageUrl = string.IsNullOrEmpty(category.Image) ? null : $"{baseUrl}/{category.Image}",
+                    Products = [.. products.Select(p => new GetProductsDTO
+                    {
+                        Id = p.Id,
+                        Name = p.Name,
+                        Description = p.Description,
+                        Brand = p.Brand,
+                        CategoryId = p.CategoryId,
+                        Discount = p.Discount,
+                        Options = p.Options,
+                        Price = p.Price,
+                        Variants = p.Variants,
+                        Images = p.Images?.Select(img =>
+{
+    if (img.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+    {
+        // Remove the existing base URL (up to the third slash)
+        var uri = new Uri(img);
+        var relativePath = uri.PathAndQuery.TrimStart('/');
+        return $"{baseUrl}/{relativePath}";
+    }
+    else
+    {
+        return $"{baseUrl}/{img.TrimStart('/')}";
+    }
+}).ToList()
+                    })]
+                };
+                return Ok(dto);
             }
             catch (Exception ex)
             {
@@ -102,10 +145,6 @@ namespace ModularEshopApi.Controllers
                     var fileName = Path.GetRandomFileName() + Path.GetExtension(dto.Image.FileName);
                     var filePath = Path.Combine(directoryPath, fileName);
 
-                    if (!Directory.Exists(directoryPath))
-                    {
-                        Directory.CreateDirectory(directoryPath);
-                    }
                     using (var stream = new FileStream(filePath, FileMode.Create))
                     {
                         await dto.Image.CopyToAsync(stream);
@@ -116,7 +155,7 @@ namespace ModularEshopApi.Controllers
                 category.Image = imagePath;
                 _context.Categorys.Update(category);
                 await _context.SaveChangesAsync();
-               
+
                 return CreatedAtAction("GetCategory", new { id = category.Id }, category);
             }
             catch (Exception ex)
@@ -170,7 +209,7 @@ namespace ModularEshopApi.Controllers
                 var category = await _context.Categorys.FindAsync(id);
                 if (category == null)
                 {
-                    return NotFound("Product not found");
+                    return NotFound("Category not found");
                 }
                 if (dto.Image != null)
                 {
