@@ -73,7 +73,7 @@ namespace ModularEshopApi.Controllers
 
         // POST: api/Users
         [HttpPost]
-        public async Task<ActionResult<User>> CreateUser(User user)
+        public async Task<ActionResult<User>> CreateUser([FromForm] User user)
         {
             try
             {
