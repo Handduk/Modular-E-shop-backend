@@ -20,6 +20,24 @@ namespace ModularEshopApi.Controllers
             _context = context;
             _mapper = mapper;
         }
+
+        [HttpGet]
+        public async Task<ActionResult<ActionResult<UserDTO>>> GetUsers()
+        {
+            var users = await _context.Users.ToListAsync();
+            var userList = users.Select(User => new UserDTO
+            {
+                Id = User.Id,
+                Name = User.Name,
+                Email = User.Email,
+                Role = User.Role
+            }).ToList();
+            if (userList == null)
+            {
+                return NotFound("No users found");
+            }
+            return Ok(userList);
+        }
         // GET: api/Users/1
         [HttpGet("{id}")]
         public async Task<ActionResult<User>> GetUser(int id)
@@ -31,6 +49,26 @@ namespace ModularEshopApi.Controllers
             }
             var userDto = _mapper.Map<UserDTO>(user);
             return Ok(userDto);
+        }
+
+        // GET: api/Users/Role/{email}
+        [HttpGet("Role/{role}")]
+        public async Task<ActionResult<List<UserDTO>>> GetUsersByRole(string role)
+        {
+            try
+            {
+                var users = await _context.Users.Where(u => u.Role.ToLower() == role.ToLower()).ToListAsync();
+                if (users == null || !users.Any())
+                {
+                    return NotFound("No users found with the specified role");
+                }
+                var userDtos = _mapper.Map<List<UserDTO>>(users);
+                return Ok(userDtos);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Internal server error: " + ex.Message);
+            }
         }
 
         // POST: api/Users
@@ -45,9 +83,41 @@ namespace ModularEshopApi.Controllers
 
                 var userDto = _mapper.Map<UserDTO>(user);
                 return CreatedAtAction("GetUser", new { id = user.Id }, userDto);
-            } catch (Exception ex)
+            }
+            catch (Exception ex)
             {
                 return StatusCode(500, "Internal server error: " + ex);
+            }
+        }
+
+        // POST: api/Users/reseller
+        [HttpPost("reseller")]
+        public async Task<ActionResult<UserDTO>> CreateReseller([FromForm] CreateResellerDTO dto)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(dto.Name) || string.IsNullOrWhiteSpace(dto.Email))
+                {
+                    return BadRequest("Name and Email are required");
+                }
+
+                var user = new User
+                {
+                    Name = dto.Name,
+                    Email = dto.Email,
+                    Role = "Reseller",
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("defaultPassword") // Default password, should be changed by the user
+                };
+
+                _context.Users.Add(user);
+                await _context.SaveChangesAsync();
+
+                var userDto = _mapper.Map<UserDTO>(user);
+                return CreatedAtAction("GetUser", new { id = user.Id }, userDto);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Internal server error: " + ex.Message);
             }
         }
 
@@ -81,8 +151,9 @@ namespace ModularEshopApi.Controllers
 
                 var userDto = _mapper.Map<UserDTO>(userToEdit);
                 return Ok(userDto);
-                
-            } catch (Exception ex)
+
+            }
+            catch (Exception ex)
             {
                 return StatusCode(500, "internal server error: " + ex.Message);
             }
@@ -95,7 +166,7 @@ namespace ModularEshopApi.Controllers
             try
             {
                 var user = await _context.Users.FindAsync(id);
-                if(user == null)
+                if (user == null)
                 {
                     return NotFound();
                 }
@@ -103,7 +174,8 @@ namespace ModularEshopApi.Controllers
                 await _context.SaveChangesAsync();
                 var userDto = _mapper.Map<UserDTO>(user);
                 return Ok(userDto);
-            } catch (Exception ex)
+            }
+            catch (Exception ex)
             {
                 return StatusCode(500, "Internal server error: " + ex.Message);
             }
@@ -115,7 +187,7 @@ namespace ModularEshopApi.Controllers
             try
             {
                 var user = await _context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == loginDTO.Email.ToLower());
-                if(user == null || !BCrypt.Net.BCrypt.Verify(loginDTO.Password, user.PasswordHash))
+                if (user == null || !BCrypt.Net.BCrypt.Verify(loginDTO.Password, user.PasswordHash))
                 {
                     return Unauthorized("Wrong email or password");
                 }
@@ -123,7 +195,7 @@ namespace ModularEshopApi.Controllers
                 var userDto = _mapper.Map<UserDTO>(user);
                 return Ok(userDto);
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 return StatusCode(500, "Internal server error: " + ex.Message);
             }
