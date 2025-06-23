@@ -123,34 +123,35 @@ namespace ModularEshopApi.Controllers
 
         // Put: api/Users/1
         [HttpPut("{id}")]
-        public async Task<ActionResult<User>> UpdateUser(int id, User user)
+        public async Task<ActionResult<UserDTO>> UpdateUser(int id, [FromForm] UpdateUserDTO userDto)
         {
             try
             {
+                if (userDto == null)
+                {
+                    return BadRequest("User data is required");
+                }
+
                 var userToEdit = await _context.Users.FindAsync(id);
                 if (userToEdit == null)
                 {
                     return NotFound("User not found");
                 }
-                if (userToEdit.Id != id)
-                {
-                    return BadRequest("Id mismatch");
-                }
 
-                userToEdit.Name = user.Name;
-                userToEdit.Email = user.Email;
-                userToEdit.Role = user.Role;
+                userToEdit.Name = userDto.Name;
+                userToEdit.Email = userDto.Email;
+                userToEdit.Role = userDto.Role;
 
-                if (!string.IsNullOrWhiteSpace(user.PasswordHash))
+                if (!string.IsNullOrWhiteSpace(userDto.Password))
                 {
-                    userToEdit.PasswordHash = BCrypt.Net.BCrypt.HashPassword(user.PasswordHash);
+                    userToEdit.PasswordHash = BCrypt.Net.BCrypt.HashPassword(userDto.Password);
                 }
 
                 _context.Entry(userToEdit).State = EntityState.Modified;
                 await _context.SaveChangesAsync();
 
-                var userDto = _mapper.Map<UserDTO>(userToEdit);
-                return Ok(userDto);
+                var resultDto = _mapper.Map<UserDTO>(userToEdit);
+                return Ok(resultDto);
 
             }
             catch (Exception ex)
