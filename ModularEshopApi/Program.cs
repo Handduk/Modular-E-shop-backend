@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using ModularEshopApi.Data;
-using Microsoft.AspNetCore.Mvc.NewtonsoftJson;
+using System.Globalization;
 using ModularEshopApi.Helpers;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -49,6 +49,10 @@ if (app.Environment.IsDevelopment())
         options.RoutePrefix = "swagger";
     });
 }
+
+var cultureInfo = CultureInfo.InvariantCulture;
+CultureInfo.DefaultThreadCurrentCulture = cultureInfo;
+CultureInfo.DefaultThreadCurrentUICulture = cultureInfo;
 
 app.UseRouting();
 
