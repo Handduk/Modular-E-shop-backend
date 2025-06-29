@@ -68,7 +68,7 @@ namespace ModularEshopApi.Controllers
 
 
         // GET: api/Products/1
-        [HttpGet("{id}")]
+        [HttpGet("id")]
         public async Task<ActionResult<GetProductsDTO>> GetProduct(int id)
         {
             try
@@ -103,6 +103,40 @@ namespace ModularEshopApi.Controllers
             }
         }
 
+        // GET: api/Products/
+        [HttpGet("productslist")]
+        public async Task<ActionResult<List<GetProductsDTO>>> GetProductList([FromQuery] int[] ids)
+        {
+            try
+            {
+                var baseUrl = $"{Request.Scheme}://{Request.Host}";
+                var products = await _context.Products.Where(p => ids.Contains(p.Id)).ToListAsync();
+                if (products == null || !products.Any())
+                {
+                    return NotFound("No products found for the provided IDs");
+                }
+                var listOfProducts = products.Select(product => new GetProductsDTO
+                {
+                    Id = product.Id,
+                    Name = product.Name,
+                    Description = product.Description,
+                    CategoryId = product.CategoryId,
+                    Brand = product.Brand,
+                    Options = product.Options,
+                    Price = product.Price,
+                    Variants = product.Variants,
+                    Discount = product.Discount,
+                    Images = product.Images?.Select(image => image.StartsWith("http://") || image.StartsWith("https://")
+                    ? image
+                    : $"{baseUrl}/{image.TrimStart('/')}").ToList()
+                });
+                return Ok(listOfProducts);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Internal server error: " + ex.Message);
+            }
+        }
 
         //POST: api/Products
         [HttpPost]
