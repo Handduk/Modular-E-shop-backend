@@ -46,7 +46,7 @@ namespace ModularEshopApi.Controllers
                     Id = category.Id,
                     Name = category.Name,
                     Description = category.Description,
-                    ImageUrl = string.IsNullOrEmpty(category.Image) ? null : $"{baseUrl}/{category.Image}"
+                    Image = string.IsNullOrEmpty(category.Image) ? null : $"{baseUrl}/{category.Image}"
                 }).ToListAsync();
 
                 return Ok(listOfCategorys);
@@ -78,7 +78,7 @@ namespace ModularEshopApi.Controllers
                     Id = category.Id,
                     Name = category.Name,
                     Description = category.Description,
-                    ImageUrl = string.IsNullOrEmpty(category.Image) ? null : $"{baseUrl}/{category.Image}",
+                    Image = string.IsNullOrEmpty(category.Image) ? null : $"{baseUrl}/{category.Image}",
                     Products = [.. products.Select(p => new GetProductsDTO
                     {
                         Id = p.Id,
@@ -210,40 +210,49 @@ namespace ModularEshopApi.Controllers
                 {
                     return NotFound("Category not found");
                 }
-                if (dto.Image != null)
+                category.Name = dto.Name;
+                category.Description = dto.Description;
+                var categoryName = $"{GetSafeFolderName(category.Name)}-{category.Id}";
+
+                var categoryFolder = Path.Combine(_env.WebRootPath, "categorys", categoryName);
+                if (!Directory.Exists(categoryFolder))
                 {
-                    //Delete the old image if it exists
+                    Directory.CreateDirectory(categoryFolder);
+                }
+                //If a new Image is provided, save it and update the category
+                if (dto.Image is IFormFile formFile && formFile.Length > 0)
+                {
+                    //delete old image
                     if (!string.IsNullOrEmpty(category.Image))
                     {
-                        var oldImagePath = Path.Combine(_env.WebRootPath, "categorys", dto.Name, category.Image.Replace("/", Path.DirectorySeparatorChar.ToString()));
+                        var oldImagePath = Path.Combine(categoryFolder, category.Image.Replace("/", Path.DirectorySeparatorChar.ToString()));
                         if (System.IO.File.Exists(oldImagePath))
                         {
                             System.IO.File.Delete(oldImagePath);
                         }
                     }
-                    var directoryPath = Path.Combine(_env.WebRootPath, "categorys", dto.Name);
-                    var fileName = Path.GetRandomFileName() + Path.GetExtension(dto.Image.FileName);
-                    var filePath = Path.Combine(directoryPath, fileName);
 
-                    if (!Directory.Exists(directoryPath))
-                    {
-                        Directory.CreateDirectory(directoryPath);
-                    }
+                    //save new image
+                    var fileName = Path.GetRandomFileName() + Path.GetExtension(dto.Image.FileName);
+                    var filePath = Path.Combine(categoryFolder, fileName);
 
                     using var stream = new FileStream(filePath, FileMode.Create);
                     await dto.Image.CopyToAsync(stream);
-
-                    category.Image = "categorys/images/" + fileName;
+                    var relativePath = Path.Combine("categorys", categoryName, fileName).Replace("\\", "/");
+                    category.Image = relativePath;
                 }
-                else if (dto.RemoveImage && !string.IsNullOrEmpty(category.Image))
+
+                if (dto.Image == null && !string.IsNullOrEmpty(dto.Image?.FileName) && !string.IsNullOrEmpty(category.Image))
                 {
-                    //Delete the old image if it exists
-                    var oldImagePath = Path.Combine(_env.WebRootPath, "categorys", dto.Name, category.Image.Replace("/", Path.DirectorySeparatorChar.ToString()));
-                    if (System.IO.File.Exists(oldImagePath))
                     {
-                        System.IO.File.Delete(oldImagePath);
+                        //Delete the old image if it exists
+                        var oldImagePath = Path.Combine(categoryFolder, category.Image.Replace("/", Path.DirectorySeparatorChar.ToString()));
+                        if (System.IO.File.Exists(oldImagePath))
+                        {
+                            System.IO.File.Delete(oldImagePath);
+                        }
+                        category.Image = null;
                     }
-                    category.Image = null;
                 }
                 _context.Categorys.Update(category);
                 await _context.SaveChangesAsync();
