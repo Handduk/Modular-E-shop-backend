@@ -153,7 +153,6 @@ namespace ModularEshopApi.Controllers
                     Description = dto.Description,
                     Options = dto.Options,
                     Price = dto.Price,
-                    Variants = dto.Variants,
                     Discount = dto.Discount,
 
                 };
@@ -189,6 +188,14 @@ namespace ModularEshopApi.Controllers
                     }
                 }
                 product.Images = imagePaths;
+                if (dto.Variants != null && dto.Variants.Count > 0)
+                {
+                    product.Variants = dto.Variants;
+                }
+                else
+                {
+                    product.Variants = new List<Variant>();
+                }
                 _context.Products.Update(product);
                 await _context.SaveChangesAsync();
                 return CreatedAtAction("GetProduct", new { id = product.Id }, product);
@@ -262,7 +269,11 @@ namespace ModularEshopApi.Controllers
 
 
                 var existingImages = product.Images ?? new List<string>();
+                var existingVariants = product.Variants ?? new List<Variant>();
+                var keptVariants = dto.Variants ?? new List<Variant>();
                 var keptImages = dto.KeptImages ?? new List<string>();
+
+                var variantsToDelete = existingVariants.Except(keptVariants).ToList();
 
                 var baseUrl = $"{Request.Scheme}://{Request.Host}";
                 keptImages = keptImages.Select(image => image.StartsWith(baseUrl) ? image.Replace(baseUrl + "/", "") : image).ToList();
