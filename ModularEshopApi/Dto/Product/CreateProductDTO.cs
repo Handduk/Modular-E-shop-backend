@@ -1,4 +1,6 @@
-﻿namespace ModularEshopApi.Dto.Product
+﻿using ModularEshopApi.Models;
+
+namespace ModularEshopApi.Dto.Product
 {
     public class CreateProductDTO
     {
@@ -8,9 +10,11 @@
         public required string Description { get; set; }
         public List<string>? Options { get; set; }
         public decimal Price { get; set; }
-        public List<Variant>? Variants { get; set; }
         public decimal? Discount { get; set; }
 
         public List<IFormFile>? Images { get; set; }
+
+        public string? VariantJson { get; set; }
+        public List<IFormFile> VariantImages { get; set; } = new();
     }
 }
