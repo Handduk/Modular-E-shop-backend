@@ -1,4 +1,6 @@
-﻿namespace ModularEshopApi.Dto.Product
+﻿using ModularEshopApi.Models;
+
+namespace ModularEshopApi.Dto.Product
 {
     public class GetProductsDTO
     {

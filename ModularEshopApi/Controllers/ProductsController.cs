@@ -1,8 +1,10 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ModularEshopApi.Data;
 using ModularEshopApi.Dto.Product;
 using ModularEshopApi.Models;
+using Newtonsoft.Json;
 
 namespace ModularEshopApi.Controllers
 {
@@ -68,12 +70,13 @@ namespace ModularEshopApi.Controllers
 
 
         // GET: api/Products/1
-        [HttpGet("id")]
+        [HttpGet("{id:int}")]
         public async Task<ActionResult<GetProductsDTO>> GetProduct(int id)
         {
             try
             {
-                var product = await _context.Products.FindAsync(id);
+                var product = await _context.Products.Include(p => p.Variants)
+                                                     .FirstOrDefaultAsync(p => p.Id == id);
                 if (product == null)
                 {
                     return NotFound();
@@ -110,7 +113,10 @@ namespace ModularEshopApi.Controllers
             try
             {
                 var baseUrl = $"{Request.Scheme}://{Request.Host}";
-                var products = await _context.Products.Where(p => ids.Contains(p.Id)).ToListAsync();
+                var products = await _context.Products
+                    .Where(p => ids.Contains(p.Id))
+                    .Include(p => p.Variants)
+                    .ToListAsync();
                 if (products == null || !products.Any())
                 {
                     return NotFound("No products found for the provided IDs");
@@ -160,9 +166,9 @@ namespace ModularEshopApi.Controllers
                 _context.Products.Add(product);
                 await _context.SaveChangesAsync();
 
+                var category = await _context.Categorys.FindAsync(dto.CategoryId);
                 if (dto.Images != null && dto.Images.Count > 0)
                 {
-                    var category = await _context.Categorys.FindAsync(dto.CategoryId);
                     if (category == null)
                     {
                         return NotFound($"Category with ID {dto.CategoryId} not found");
@@ -188,13 +194,43 @@ namespace ModularEshopApi.Controllers
                     }
                 }
                 product.Images = imagePaths;
-                if (dto.Variants != null && dto.Variants.Count > 0)
+
+                if (!string.IsNullOrEmpty(dto.VariantJson))
                 {
-                    product.Variants = dto.Variants;
-                }
-                else
-                {
-                    product.Variants = new List<Variant>();
+                    var variants = JsonConvert.DeserializeObject<List<Variant>>(dto.VariantJson) ?? new List<Variant>();
+                    for (int i = 0; i < variants.Count; i++)
+                    {
+                        var variant = variants[i];
+                        variant.ProductId = product.Id;
+
+                        if (dto.VariantImages != null && dto.VariantImages.Count > i)
+                        {
+                            var variantImage = dto.VariantImages[i];
+                            if (variantImage != null)
+                            {
+                                var folderName = $"{GetSafeFolderName(dto.Name)}-{product.Id}";
+                                if (category == null)
+                                {
+                                    return NotFound($"Category with ID {dto.CategoryId} not found");
+                                }
+                                var categoryName = $"{GetSafeFolderName(category.Name)}-{dto.CategoryId}";
+                                var directoryPath = Path.Combine(_env.WebRootPath, "categorys", categoryName, "products", folderName);
+                                if (!Directory.Exists(directoryPath))
+                                {
+                                    Directory.CreateDirectory(directoryPath);
+                                }
+
+                                var fileName = Path.GetRandomFileName() + Path.GetExtension(variantImage.FileName);
+                                var filePath = Path.Combine(directoryPath, fileName);
+
+                                using var stream = new FileStream(filePath, FileMode.Create);
+                                await variantImage.CopyToAsync(stream);
+
+                                variant.VariantImg = $"categorys/{categoryName}/products/{folderName}/{fileName}";
+                            }
+                        }
+                        _context.Variants.Add(variant);
+                    }
                 }
                 _context.Products.Update(product);
                 await _context.SaveChangesAsync();
@@ -256,75 +292,152 @@ namespace ModularEshopApi.Controllers
         {
             try
             {
-                var product = await _context.Products.FindAsync(id);
+                List<Variant> incomingVariants = new();
+                if (!string.IsNullOrEmpty(dto.VariantJson))
+                {
+                    incomingVariants = JsonConvert.DeserializeObject<List<Variant>>(dto.VariantJson) ?? new();
+                }
+
+                var product = await _context.Products
+    .Include(p => p.Variants)
+    .FirstOrDefaultAsync(p => p.Id == id);
                 if (product == null)
                     return NotFound("Product not found");
+
                 product.Brand = dto.Brand;
                 product.Name = dto.Name;
                 product.Description = dto.Description;
                 product.Options = dto.Options;
                 product.Price = dto.Price;
-                product.Variants = dto.Variants;
                 product.Discount = dto.Discount;
 
-
                 var existingImages = product.Images ?? new List<string>();
-                var existingVariants = product.Variants ?? new List<Variant>();
-                var keptVariants = dto.Variants ?? new List<Variant>();
                 var keptImages = dto.KeptImages ?? new List<string>();
-
-                var variantsToDelete = existingVariants.Except(keptVariants).ToList();
-
                 var baseUrl = $"{Request.Scheme}://{Request.Host}";
-                keptImages = keptImages.Select(image => image.StartsWith(baseUrl) ? image.Replace(baseUrl + "/", "") : image).ToList();
-
+                keptImages = keptImages.Select(img => img.StartsWith(baseUrl) ? img.Replace(baseUrl + "/", "") : img).ToList();
                 var imagesToDelete = existingImages.Except(keptImages).ToList();
+
                 var category = await _context.Categorys.FindAsync(product.CategoryId);
                 if (category == null)
-                {
                     return NotFound($"Category with ID {product.CategoryId} not found");
-                }
 
-                var folderName = $"{GetSafeFolderName(dto.Name)}-{product.Id}";
-                var categoryName = $"{GetSafeFolderName(category.Name)}-{category.Id}";
-                var directoryPath = Path.Combine(_env.WebRootPath, "categorys", categoryName, "products", folderName);
+                var safeCategory = $"{GetSafeFolderName(category.Name)}-{category.Id}";
+                var safeProduct = $"{GetSafeFolderName(dto.Name)}-{product.Id}";
+                var productPath = Path.Combine(_env.WebRootPath, "categorys", safeCategory, "products", safeProduct);
+                if (!Directory.Exists(productPath))
+                    Directory.CreateDirectory(productPath);
 
 
-                //Delete old images
-                foreach (var image in imagesToDelete)
+                foreach (var img in imagesToDelete)
                 {
-                    var filePath = Path.Combine(directoryPath, image.Replace("/", Path.DirectorySeparatorChar.ToString()));
-                    if (System.IO.File.Exists(filePath))
-                    {
-                        System.IO.File.Delete(filePath);
-                    }
+                    var imgPath = Path.Combine(_env.WebRootPath, img.Replace("/", Path.DirectorySeparatorChar.ToString()));
+                    if (System.IO.File.Exists(imgPath))
+                        System.IO.File.Delete(imgPath);
                 }
 
                 var updatedImages = new List<string>(keptImages);
-                //Add new images
                 if (dto.NewImages != null)
                 {
-                    foreach (var image in dto.NewImages)
+                    foreach (var img in dto.NewImages)
                     {
-                        ;
-                        if (!Directory.Exists(directoryPath))
-                        {
-                            Directory.CreateDirectory(directoryPath);
-                        }
-                        var fileName = Path.GetRandomFileName() + Path.GetExtension(image.FileName);
-                        var filePath = Path.Combine(directoryPath, fileName);
+                        var fileName = Path.GetRandomFileName() + Path.GetExtension(img.FileName);
+                        var fullPath = Path.Combine(productPath, fileName);
 
+                        using var stream = new FileStream(fullPath, FileMode.Create);
+                        await img.CopyToAsync(stream);
 
-                        using var stream = new FileStream(filePath, FileMode.Create);
-                        await image.CopyToAsync(stream);
-
-                        var relativePath = Path.Combine("categorys", categoryName, "products", folderName, fileName).Replace("\\", "/");
+                        var relativePath = Path.Combine("categorys", safeCategory, "products", safeProduct, fileName).Replace("\\", "/");
                         updatedImages.Add(relativePath);
                     }
                 }
                 product.Images = updatedImages;
+
+
+                var existingVariants = _context.Variants.Where(v => v.ProductId == product.Id).ToList();
+                var incomingIds = incomingVariants.Select(v => v.Id).ToHashSet();
+
+
+                var deletedVariants = existingVariants.Where(ev => !incomingIds.Contains(ev.Id)).ToList();
+                foreach (var dv in deletedVariants)
+                {
+                    if (!string.IsNullOrEmpty(dv.VariantImg))
+                    {
+                        var oldPath = Path.Combine(_env.WebRootPath, dv.VariantImg.Replace("/", Path.DirectorySeparatorChar.ToString()));
+                        if (System.IO.File.Exists(oldPath))
+                            System.IO.File.Delete(oldPath);
+                    }
+                    _context.Variants.Remove(dv);
+                }
+
+
+                var uploadedVariantImages = new Dictionary<int, IFormFile>();
+                foreach (var file in dto.VariantImages)
+                {
+                    var match = Regex.Match(file.FileName, @"variant_(\d+)_");
+                    if (match.Success && int.TryParse(match.Groups[1].Value, out int variantId))
+                    {
+                        uploadedVariantImages[variantId] = file;
+                    }
+                }
+
+                foreach (var variant in incomingVariants)
+                {
+                    var existing = existingVariants.FirstOrDefault(v => v.Id == variant.Id);
+                    IFormFile? newImage = uploadedVariantImages.GetValueOrDefault(variant.Id);
+
+                    if (existing != null)
+                    {
+                        existing.VariantName = variant.VariantName;
+                        existing.VariantPrice = variant.VariantPrice;
+
+                        if (newImage != null)
+                        {
+                            // delete old image
+                            if (!string.IsNullOrEmpty(existing.VariantImg))
+                            {
+                                var oldPath = Path.Combine(_env.WebRootPath, existing.VariantImg.Replace("/", Path.DirectorySeparatorChar.ToString()));
+                                if (System.IO.File.Exists(oldPath))
+                                    System.IO.File.Delete(oldPath);
+                            }
+
+                            var fileName = $"variant_{variant.Id}_{Guid.NewGuid()}{Path.GetExtension(newImage.FileName)}";
+                            var fullPath = Path.Combine(productPath, fileName);
+                            using var stream = new FileStream(fullPath, FileMode.Create);
+                            await newImage.CopyToAsync(stream);
+
+                            var relativePath = Path.Combine("categorys", safeCategory, "products", safeProduct, fileName).Replace("\\", "/");
+                            existing.VariantImg = relativePath;
+                        }
+
+                        _context.Variants.Update(existing);
+                    }
+                    else
+                    {
+                        var newVariant = new Variant
+                        {
+                            ProductId = product.Id,
+                            VariantName = variant.VariantName,
+                            VariantPrice = variant.VariantPrice
+                        };
+
+                        if (newImage != null)
+                        {
+                            var fileName = $"variant_0_{Guid.NewGuid()}{Path.GetExtension(newImage.FileName)}";
+                            var fullPath = Path.Combine(productPath, fileName);
+                            using var stream = new FileStream(fullPath, FileMode.Create);
+                            await newImage.CopyToAsync(stream);
+
+                            var relativePath = Path.Combine("categorys", safeCategory, "products", safeProduct, fileName).Replace("\\", "/");
+                            newVariant.VariantImg = relativePath;
+                        }
+
+                        _context.Variants.Add(newVariant);
+                    }
+                }
+
                 _context.Products.Update(product);
                 await _context.SaveChangesAsync();
+
                 return Ok(product);
             }
             catch (Exception ex)
