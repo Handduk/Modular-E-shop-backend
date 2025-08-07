@@ -1,0 +1,46 @@
+{
+  "checkout": {
+    "integrationType": "EmbeddedCheckout",
+    "url": "http://192.168.0.29:5173/checkout",
+    "termsUrl": "http://192.168.0.29:5173/terms",
+    "appearance": {
+      "displayOptions": {
+        "showOrderSummary": true
+      }
+    }
+  },
+  "order": {
+    "items": [
+      {
+        "reference": "38",
+        "name": "Slättakaffe 250g hela bönor",
+        "quantity": 2,
+        "unit": "pcs",
+        "unitPrice": 12500,
+        "grossTotalAmount": 25000,
+        "netTotalAmount": 25000
+      },
+        {
+        "reference": "39",
+        "name": "Mikes el classico 1kg hela bönor",
+        "quantity": 1,
+        "unit": "pcs",
+        "unitPrice": 57000,
+        "grossTotalAmount": 57000,
+        "netTotalAmount": 57000
+        },
+        {
+        "reference": "40",
+        "name": "Rosteriet keps röd",
+        "quantity": 1,
+        "unit": "pcs",
+        "unitPrice": 24900,
+        "grossTotalAmount": 24900,
+        "netTotalAmount": 24900
+        }
+    ],
+    "amount": 106900,
+    "currency": "SEK",
+    "reference": "Demo Order"
+  }
+}
