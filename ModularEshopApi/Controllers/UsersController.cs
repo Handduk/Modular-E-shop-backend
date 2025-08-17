@@ -78,6 +78,7 @@ namespace ModularEshopApi.Controllers
             try
             {
                 user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(user.PasswordHash);
+                user.Role = user.Role.ToUpper();
                 _context.Users.Add(user);
                 await _context.SaveChangesAsync();
 
@@ -192,7 +193,6 @@ namespace ModularEshopApi.Controllers
                 {
                     return Unauthorized("Wrong email or password");
                 }
-
                 var userDto = _mapper.Map<UserDTO>(user);
                 return Ok(userDto);
             }
