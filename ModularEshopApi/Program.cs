@@ -6,6 +6,7 @@ using ModularEshopApi.Helpers;
 
 var builder = WebApplication.CreateBuilder(args);
 var myAllowedOrigins = "_myAllowedOrigins";
+var mySqlConnection = Environment.GetEnvironmentVariable("MYSQL_CONNECTION_STRING");
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -46,7 +47,8 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 
-builder.Services.AddDbContext<ApiDbContext>(opt => opt.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddDbContext<ApiDbContext>(opt => opt.UseMySql(mySqlConnection,
+ServerVersion.AutoDetect(mySqlConnection)));
 builder.Services.AddControllers().AddNewtonsoftJson();
 
 var app = builder.Build();
