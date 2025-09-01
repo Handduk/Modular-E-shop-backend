@@ -6,7 +6,7 @@ using ModularEshopApi.Helpers;
 
 var builder = WebApplication.CreateBuilder(args);
 var myAllowedOrigins = "_myAllowedOrigins";
-var mySqlConnection = Environment.GetEnvironmentVariable("MYSQL_CONNECTION_STRING");
+var mySqlConnection = Environment.GetEnvironmentVariable("AZURE_SQL_CONNECTIONSTRING");
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
