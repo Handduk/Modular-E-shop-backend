@@ -240,6 +240,7 @@ _pkginfo.txt
 
 # Others
 ClientBin/
+ClientApp/
 ~$*
 *~
 *.dbmdl

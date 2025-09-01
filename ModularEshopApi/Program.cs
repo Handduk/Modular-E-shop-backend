@@ -6,7 +6,7 @@ using ModularEshopApi.Helpers;
 
 var builder = WebApplication.CreateBuilder(args);
 var myAllowedOrigins = "_myAllowedOrigins";
-var mySqlConnection = Environment.GetEnvironmentVariable("AZURE_SQL_CONNECTIONSTRING");
+var mySqlConnection = Environment.GetEnvironmentVariable("MYSQL_CONNECTION_STRING");
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -72,10 +72,16 @@ app.UseRouting();
 
 app.UseCors(myAllowedOrigins);
 
-app.UseStaticFiles();
-
 app.UseAuthorization();
 
+app.UseHttpsRedirection();
+
+app.UseDefaultFiles();
+
+app.UseStaticFiles();
+
 app.MapControllers();
+
+app.MapFallbackToFile("index.html");
 
 app.Run();
